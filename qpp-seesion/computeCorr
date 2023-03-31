@@ -1,0 +1,71 @@
+# get Ground Truth(Recall), need to do the following steps:
+# 1\ get the number of retrieved documents(numRetDoc)
+#   1) get the session2DocList:
+import numpy as np
+import scipy
+
+import QPPWorkFlow
+import topicLevelData
+
+def getQPPCorr(metric, QPPmethod, queryQPPFile, topic2Session, topicRecallList):
+    x = np.array(topicRecallList)
+    if metric == 'avg':
+        topicQPPAvgList = topicLevelData.getTopicQPPAvg(queryQPPFile, topic2Session)
+        print("topicQPP:", topicQPPAvgList)
+        y = np.array(topicQPPAvgList)
+        rhoQPPAvg = scipy.stats.pearsonr(x, y)
+        tauQPPAvg = scipy.stats.kendalltau(x, y)
+        return rhoQPPAvg, tauQPPAvg
+        print('rho for', metric, ' ', QPPmethod, ":", rhoQPPAvg)
+        print('tau for', metric, ' ', QPPmethod, ":", tauQPPAvg)
+        # 4/ get the maximum NQC for topic level
+        # 4/ compute rho and tau of Average NQC
+    elif metric == 'max':
+        topicQPPMaxList = topicLevelData.getTopicQPPMax(queryQPPFile, topic2Session)
+        z = np.array(topicQPPMaxList)
+        rhoQPPMax = scipy.stats.pearsonr(x, z)
+        tauQPPMax = scipy.stats.kendalltau(x, z)
+        return rhoQPPMax, tauQPPMax
+        print('rho for', metric, ' ', QPPmethod, ":" , rhoQPPMax)
+        print('tau for', metric, ' ', QPPmethod, ":" , tauQPPMax)
+
+if __name__ == "__main__":
+    sessionDocList = QPPWorkFlow.getSessionDoclist('sessiontrack2014.xml')
+    #   2) get topic2Session
+    topic2session = QPPWorkFlow.getTopic2Session('topic2session')
+    #   3) using the above data to get topicDocList
+    topicDocList = QPPWorkFlow.getTopic2DocList(sessionDocList, topic2session)
+    numRetDoc = {}
+    for key in topicDocList.keys():
+        numRetDoc[key] = len(topicDocList[key])
+
+# 2\ get the number of relevant documents
+#   1) get topicDocRel
+topicDocRel = QPPWorkFlow.getTopicDocRel('qrelsFile', topicDocList)
+numRelDoc = {}
+for topic in topicDocRel:
+    num = 0
+    for doc in topicDocRel[topic]:
+        if topicDocRel[topic][doc] > 1:
+            # print(qrels[key])
+            num = num + 1
+    numRelDoc[topic] = num
+totalNumRelDoc = 0
+for key in numRelDoc:
+    totalNumRelDoc = totalNumRelDoc + numRelDoc[topic]
+print("num of reldoc:", totalNumRelDoc)
+
+# print(numRelDoc)
+
+# 3\ recall = numRelDoc/numRetDoc
+topicRecallList = QPPWorkFlow.computeRecallList(numRetDoc, numRelDoc)
+# for i in topicRecallList:
+#     print(i)
+# print(topicRecallList)
+
+# 3/compute rho and tau of Average/Max QPP
+# corr = getQPPCorr('avg', 'NQC', 'queryNQC', 'topic2Session', topicRecallList)
+# corr = getQPPCorr('max', 'NQC', 'queryNQC', 'topic2Session', topicRecallList)
+# corr = getQPPCorr('avg', 'WIG', 'queryWIG', 'topic2Session', topicRecallList)
+corr = getQPPCorr('max', 'WIG', 'queryWIG', 'topic2Session', topicRecallList)
+print(corr)
